@@ -2,7 +2,7 @@
 The generator of BDT for seperating SM Higgs and AC Higgs in VHMET(H->gg) channel via xgboost 
 
 Example of usage:
-    python3 main.py -n "acbdt_fa31d0" -ac "fa3" -x 1 -op 1
+    ```python3 main.py -n "acbdt_fa31d0" -ac "fa3" -x 1 -op 1```
 
 where:
 -n: name of the BDT
