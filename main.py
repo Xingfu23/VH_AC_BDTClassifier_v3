@@ -40,7 +40,8 @@ def main():
         return 0
     
     # Collect background (SM VH) and signal (AC VH) samples and combine each of them into a single dataframe
-    select_dataset = dataset
+    select_dataset = dataset_v2
+    select_dataset_forxml = dataset_v2_forxml
     df_bkg = colloect_samples(0, select_dataset)
     df_sig = colloect_samples(1, select_dataset, args.ac)
     
@@ -51,7 +52,7 @@ def main():
     print(f"Background/Signal ratio: {postive_ratio:.4f}\n")
     df_dataset = pd.concat([df_bkg, df_sig], ignore_index=True, axis=0)
     
-    X = df_dataset[dataset]
+    X = df_dataset[select_dataset]
     y = df_dataset['sig/bkg']
     
     # Split the dataset into train and test
@@ -63,22 +64,22 @@ def main():
     def objective(trial, X_train=X_train, y_train=y_train):
         tree_method_option = ['gpu_hist']
         boosting_type_option = ['dart', 'gbtree']
-        objective_option = ['count:poisson', 'binary:logistic']
+        objective_option = ['binary:logistic']
         metric_option = ['logloss']
         param = {
             'booster': trial.suggest_categorical('booster', boosting_type_option),
             'tree_method': trial.suggest_categorical('tree_method', tree_method_option),
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 1.),
-            'gamma': trial.suggest_float('gamma', 1, 10),
-            'max_depth': trial.suggest_int('max_depth', 2, 10),
+            'gamma': trial.suggest_float('gamma', 0, 5),
+            'max_depth': trial.suggest_int('max_depth', 3, 10),
             'min_child_weight': trial.suggest_float('min_child_weight', 0, 10),
             'max_delta_step': trial.suggest_float('max_delta_step', 0, 10),
             'subsample': trial.suggest_float('subsample', 0.5, 1.0),
-            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1),
-            'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.5, 1),
-            'colsample_bynode': trial.suggest_float('colsample_bynode', 0.5, 1),
-            'alpha': trial.suggest_float('reg_alpha', 0, 10),
-            'lambda': trial.suggest_float('reg_lambda', 0, 10),
+            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
+            'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.5, 1.0),
+            'colsample_bynode': trial.suggest_float('colsample_bynode', 0.5, 1.0),
+            'alpha': trial.suggest_float('reg_alpha', 0, 30),
+            'lambda': trial.suggest_float('reg_lambda', 1, 30),
             'objective': trial.suggest_categorical('objective', objective_option),
             'eval_metric': trial.suggest_categorical('eval_metric', metric_option),
         }
@@ -111,6 +112,7 @@ def main():
     
     xgb_model = xgb.XGBClassifier(
         **_best_params,
+        n_estimators = 200,
         use_label_encoder = None,
         early_stopping_rounds = 20,
         scale_pos_weight = postive_ratio,
@@ -146,7 +148,7 @@ def main():
     
     # Output the xml file
     if args.xmlfile:
-        output_xmlfile(plotfolder, xgb_model, dataset_forxml)
+        output_xmlfile(plotfolder, xgb_model, select_dataset_forxml)
     else:
         print("No xml file output.")
     
