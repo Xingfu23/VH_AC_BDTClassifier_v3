@@ -88,7 +88,7 @@ def main():
         xgb_model = xgb.XGBClassifier(
             **param,
             use_label_encoder = None,
-            early_stopping_rounds = 20,
+            early_stopping_rounds = 10,
         )
         
         # Training
@@ -96,7 +96,7 @@ def main():
         return metrics.log_loss(y_valid, xgb_model.predict_proba(X_valid))
     
     study = optuna.create_study(sampler=optuna.samplers.RandomSampler(seed=69), direction='minimize')
-    study.optimize(objective, n_trials=100, n_jobs=4, show_progress_bar=True)
+    study.optimize(objective, n_trials=50, n_jobs=4, show_progress_bar=True)
     
     # Print the study results: boosters, tree_methods, max_depths, learning_rates, values
     df_result = study.trials_dataframe() 
@@ -113,7 +113,7 @@ def main():
         **_best_params,
         n_estimators = 200,
         use_label_encoder = None,
-        early_stopping_rounds = 20,
+        early_stopping_rounds = 10,
         scale_pos_weight = postive_ratio,
         gpu_id = 0, # Using GPU
     )
@@ -175,6 +175,6 @@ def main():
 
 if __name__ == "__main__":
     '''
-    command example: python3 main.py -n "acbdt_fa31d0" -ac "fa3" -x 1 -op -g
+    command example: python3 main.py -n "acbdt_fa31d0" -ac "fa3" --xmlfile --outplot --gpu
     '''
     main()
