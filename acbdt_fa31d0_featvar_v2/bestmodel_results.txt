@@ -1,3 +1,0 @@
-Best hyperparameters: {'booster': 'dart', 'tree_method': 'gpu_hist', 'learning_rate': 0.20926185076205664, 'gamma': 1.2860831401405548, 'max_depth': 7, 'min_child_weight': 9.49300594227645, 'max_delta_step': 1.878151634965004, 'subsample': 0.9780096240662941, 'colsample_bytree': 0.75366864022657, 'colsample_bylevel': 0.5356787251923442, 'colsample_bynode': 0.5187836573375424, 'reg_alpha': 42.81473822885983, 'reg_lambda': 20.739830289413163, 'objective': 'binary:logistic', 'eval_metric': 'logloss'}
-Best score: 0.5226663881702774
-Logloss of train set: 0.5424 +- 0.0005
