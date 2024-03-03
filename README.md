@@ -7,7 +7,7 @@ Example of usage:
 
 where:
 -n: name of the BDT  
--ac: name of the AC parameter, should be "fa3", "fa2" or "fL1"   
+-ac: name of the AC parameter, should be "fa3", "fa2" or "fL1"  
 --xmlfile: save the BDT in xml format  
 --outplot: save the output plot  
 --gpu: use GPU to train the BDT  
