@@ -1,14 +1,11 @@
 import os
-import yaml
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, GridSearchCV, KFold, StratifiedKFold
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split, KFold
 from sklearn import metrics
 import xgboost as xgb
 import optuna
-from optuna import Trial
 import argparse
 
 from tools.xgboost2tmva import *
@@ -22,8 +19,10 @@ def get_args()-> argparse.Namespace:
 
     parser.add_argument('-n', '--plotfoldername', help="Folder's Name for output plot and xml file", type=str, default='TestName')
     parser.add_argument('-ac', '--ac', help='The type of ac, there are 3 types: fa2, fa3, fL1', type=str)
-    parser.add_argument('-x', '--xmlfile', help='Output xml file or not', type=bool, default=False)
-    parser.add_argument('-op', '--outplot', help='Output plot or not', type=bool, default=False)
+    parser.add_argument('-x', '--xmlfile', help='Output xml file or not', action="store_true", default=False)
+    parser.add_argument('-op', '--outplot', help='Output plot or not', action="store_true")
+    parser.add_argument('-g', '--gpu', help='Using GPU or not', action="store_true", default=False)
+
 
     args = parser.parse_args()
     return args
@@ -40,8 +39,8 @@ def main():
         return 0
     
     # Collect background (SM VH) and signal (AC VH) samples and combine each of them into a single dataframe
-    select_dataset = dataset_v2
-    select_dataset_forxml = dataset_v2_forxml
+    select_dataset = dataset
+    select_dataset_forxml = dataset_forxml
     df_bkg = colloect_samples(0, select_dataset)
     df_sig = colloect_samples(1, select_dataset, args.ac)
     
@@ -56,13 +55,12 @@ def main():
     y = df_dataset['sig/bkg']
     
     # Split the dataset into train and test
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=True, random_state=69)
-    data_DMatrix_train = xgb.DMatrix(data=X_train, label=y_train)
-    eval_set = [(X_train, y_train)]
+    X_train, X_tmp, y_train, y_tmp = train_test_split(X, y, test_size=0.2, stratify=y, random_state=69)
+    X_test, X_val, y_test, y_val = train_test_split(X_tmp, y_tmp, test_size=0.5, stratify=y_tmp, random_state=69)
+    eval_set = [(X_train, y_train), (X_val, y_val)]
     
-    # TODO Fine tuning the hyperparameters
-    def objective(trial, X_train=X_train, y_train=y_train):
-        tree_method_option = ['gpu_hist']
+    def objective(trial, X_train=X_train, y_train=y_train, X_valid=X_val, y_valid=y_val):
+        tree_method_option = ['hist']
         boosting_type_option = ['dart', 'gbtree']
         objective_option = ['binary:logistic']
         metric_option = ['logloss']
@@ -82,30 +80,31 @@ def main():
             'lambda': trial.suggest_float('reg_lambda', 1, 30),
             'objective': trial.suggest_categorical('objective', objective_option),
             'eval_metric': trial.suggest_categorical('eval_metric', metric_option),
+            'scale_pos_weight': postive_ratio,
         }
+        if args.gpu:
+            param['gpu_id'] = 0
+        
         xgb_model = xgb.XGBClassifier(
             **param,
             use_label_encoder = None,
             early_stopping_rounds = 20,
-            Scale_pos_weight = postive_ratio,
-            gpu_id = 0, # Using GPU
         )
         
         # Training
         xgb_model.fit(X_train, y_train, eval_set=eval_set, verbose=False)
-        return metrics.log_loss(y_test, xgb_model.predict_proba(X_test))
+        return metrics.log_loss(y_valid, xgb_model.predict_proba(X_valid))
     
     study = optuna.create_study(sampler=optuna.samplers.RandomSampler(seed=69), direction='minimize')
-    study.optimize(objective, n_trials=50)
+    study.optimize(objective, n_trials=100, n_jobs=4, show_progress_bar=True)
     
     # Print the study results: boosters, tree_methods, max_depths, learning_rates, values
-    df_result = study.trials_dataframe()
-    
+    df_result = study.trials_dataframe() 
     trial = study.best_trial
     _best_params = trial.params
     
     # KFold cross validation, and setup the best xgb model 
-    kf = KFold(n_splits=5, shuffle=True, random_state=69)
+    kf = KFold(n_splits=10, shuffle=True, random_state=69)
     
     logloss_train = []
     logloss_test = []
@@ -155,26 +154,27 @@ def main():
     # Make predictions
     y_pred = pd.DataFrame(xgb_model.predict(X_test), columns=['sig/bkg'])
     y_pred_prob_train = pd.DataFrame(xgb_model.predict_proba(X_train))
+    y_pred_prob_val = pd.DataFrame(xgb_model.predict_proba(X_val))
     y_pred_prob_test = pd.DataFrame(xgb_model.predict_proba(X_test))
     
     print(" ")
     print(f'Train group: {xgb_model.score(X_train,y_train):.4f}')
+    print(f'Validation group: {xgb_model.score(X_val,y_val):.4f}')
     print(f'Test group: {xgb_model.score(X_test,y_test):.4f}')
     
     # Make Plots
     if args.outplot:
         print("Plotting...")
         
-        y_valid_dict = {'Train': [y_train, y_pred_prob_train], 'Test': [y_test, y_pred_prob_test]}
+        y_valid_dict = {'Train': [y_train, y_pred_prob_train], 'Valid': [y_val, y_pred_prob_val], 'Test': [y_test, y_pred_prob_test]}
         
         model_importance_plot(xgb_model, plotfolder) # Drawing importance plot
         probability_plot(y_pred_prob_test, y_test, plotfolder, args.ac) # Make probabilities histograms
         roc_curve(y_valid_dict, plotfolder) # Plot ROC curve
         
 
-
 if __name__ == "__main__":
     '''
-    command example: python3 main.py -n "acbdt_fa31d0" -ac "fa3" -x 1 -op 1
+    command example: python3 main.py -n "acbdt_fa31d0" -ac "fa3" -x 1 -op -g
     '''
     main()
