@@ -65,11 +65,15 @@ def roc_curve(y_value:dict, plotfoldername:str)->None:
     # Train ROC
     fpr_train, tpr_train, _ = metrics.roc_curve(y_value['Train'][0].values, y_value['Train'][1].values[:, 1], pos_label=1)
     roc_auc_train = metrics.auc(fpr_train, tpr_train)
+    # Valid ROC
+    fpr_valid, tpr_valid, _ = metrics.roc_curve(y_value['Valid'][0].values, y_value['Valid'][1].values[:, 1], pos_label=1)
+    roc_auc_valid = metrics.auc(fpr_valid, tpr_valid)
     # Test ROC
     fpr_test, tpr_test, _ = metrics.roc_curve(y_value['Test'][0].values, y_value['Test'][1].values[:, 1], pos_label=1)
     roc_auc_test = metrics.auc(fpr_test, tpr_test)
     
     plt.plot(fpr_train, tpr_train, '#ff433d', label=f"AUC(Train) = {roc_auc_train:.3f}")
+    plt.plot(fpr_valid, tpr_valid, '#4af6c3', label=f"AUC(Valid) = {roc_auc_valid:.3f}")
     plt.plot(fpr_test, tpr_test, '#0068ff', label=f"AUC(Test) = {roc_auc_test:.3f}")
     plt.legend(loc='lower right', fontsize=14)
     plt.plot([0, 1], [0, 1], '--')

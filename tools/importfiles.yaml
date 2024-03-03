@@ -1,5 +1,6 @@
 path:
-  - /eos/user/x/xisu/WorkSpace/VH_AC_Analysis/Data_MC_comparision/CMSSW_12_4_3/src/Makeplot/UL_dataset/commontools/event_preselection_fortraining/output_files
+  # - /eos/user/x/xisu/WorkSpace/VH_AC_Analysis/Data_MC_comparision/CMSSW_12_4_3/src/Makeplot/UL_dataset/commontools/event_preselection_fortraining/output_files
+  - /home/iceeric02/workspace/BDTScore_boundary_optimisation_v2/output_files
 
 background:
   '2018':
